@@ -1,0 +1,33 @@
+\import Data.Or
+\import Logic
+\import Set
+
+\func lem => \Pi (P : \Prop) -> Dec P
+\func dne => \Pi (P : \Prop) -> Not (Not P) -> P
+
+\func dne' (P : \Prop) => Not (Not P) -> P
+
+\func dne<->lem : lem <-> dne => (lem->dne, dne->lem)
+
+\func lem->dne (l : lem) : dne => \lam P => lem->dne' (l P) \where {
+  \func lem->dne' {P : \Prop} (p : Dec P): dne' P => \lam q => \case p \with {
+    | yes e => e
+    | no n => absurd (q n)
+  }
+}
+\func dne->lem (d : dne) : lem => \lam P => d (Dec P) (lemma P)
+
+--\func notnot {P : \Prop} (p : P) : Not (Not P) => \lam p' => p' p
+
+\func lemma (P : \Prop) : Not (Not (Dec P)) => \lam pp => (l1 pp).2 (l1 pp).1
+\where {
+  \func l1 {P : \Prop} (q : Not (Dec P)) : \Sigma (Not P) (Not (Not P)) =>
+    (\lam p => q (yes p), \lam np => q (no np))
+}
+
+\func lem2 => \Pi (A : \Type) -> TruncP (Or A (Not A))
+
+\func eq-lems : lem <-> lem2 => {?}
+-- Dec (TruncP P) = TruncP [Or P (Not P)] in some sense
+\func lem->lem2 (c : lem) : lem2 => \lam P => {?}
+
