@@ -1,0 +1,58 @@
+-- item 1
+\func \infix 0 <-> (P Q : \Prop) => \Sigma (P -> Q) (Q -> P)
+
+\func all-prop-inv {A B : \Prop} (f : A -> B) (g : B -> A) : \Pi (x : A) -> g (f x) = x =>
+  \lam x => Path.inProp (g (f x)) x
+
+\func prop-univ {A B : \Prop} (equivalence : A <-> B) : A = B => iso f g (all-prop-inv f g) (all-prop-inv g f)
+  \where {
+    \func f => equivalence.1
+    \func g => equivalence.2
+  }
+
+--\type Continuation (A : \Type) => \Pi (C : \Prop) -> (A -> C) -> C
+--\func theorem {A : \Type} : TruncP A = Continuation A  => prop-univ equiv
+--\func equiv {A : \Type} : TruncP A <-> Continuation A => (\lam x => {?}, \lam c => {?})
+
+\type Relation (A : \Type) => A -> A -> \Prop
+
+\record Equiv {A : \Type} (relation : Relation A)
+  | refl : \Pi (a : A) -> relation a a
+  | sym : \Pi (a b : A) -> relation a b -> relation b a
+  | transitive : \Pi (a b c : A) -> relation a b -> relation b c -> relation a c
+
+\func rel-intersection {A : \Type} (rel-family : Relation A -> \Prop) : Relation A => \lam (x y : A)
+  => \Pi (r : Relation A) -> rel-family r -> r x y
+
+\func \infixr  5 r<= {A : \Type} (R : Relation A) (r : Relation A) : \Prop => \Pi (a b : A) -> R a b -> r a b
+
+\func equiv<= {A : \Type} (R : Relation A)  (r : Relation A): \Prop => \Sigma (Equiv r) (R r<= r)
+
+\func gen-equivalence {A : \Type} (R : Relation A) => rel-intersection (equiv<= R)
+\func gen-is-equiv {A : \Type} (R : Relation A) : Equiv (gen-equivalence R) => \new Equiv {
+  | refl => \lam a r (eq, _) => Equiv.refl {eq} a
+  | sym => \lam a b interec r eq => Equiv.sym {eq.1} a b (interec r eq)
+  | transitive => \lam a b c intersec-a-b intersec-b-c r eq => Equiv.transitive {eq.1} a b c (intersec-a-b r eq) (intersec-b-c r eq)
+}
+
+-- item 4
+\func sub-gen {A : \Type} (R : Relation A) : equiv<= R (gen-equivalence R) => (gen-is-equiv R,
+                                                                              \lam x y xRy r eq => eq.2 x y xRy)
+\func gen-is-smallest {A : \Type} (R : Relation A) (r : Relation A) (r-eq : equiv<= R r) : gen-equivalence R r<= r =>
+  \lam a b a~b => a~b r r-eq
+
+
+-- item 3
+
+--\data Unit
+--  | *
+
+\func t-prop-unit-eq => \Pi (P : \Prop) -> P -> P <-> Unit
+\func t-prop<->unit (P : \Prop) (p : P) : P <-> Unit => (\lam _ => *, \lam _ => p)
+
+\func t-prop=unit (P : \Prop) (p : P) : P = Unit => prop-univ (t-prop<->unit P p)
+
+-- item 5
+--\func is-inj {A B : \Type} (f : A -> B) => \Pi (x y : A) -> f x = f y
+
+--\func f-lemma (f : \Prop -> \Prop) (inj : is-inj f) (P : \Prop) (p : f P) : P = f Unit => {?}
