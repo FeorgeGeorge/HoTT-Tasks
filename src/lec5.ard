@@ -44,8 +44,8 @@
 
 -- item 3
 
---\data Unit
---  | *
+\data Unit
+  | *
 
 \func t-prop-unit-eq => \Pi (P : \Prop) -> P -> P <-> Unit
 \func t-prop<->unit (P : \Prop) (p : P) : P <-> Unit => (\lam _ => *, \lam _ => p)
