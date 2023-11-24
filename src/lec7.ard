@@ -1,0 +1,83 @@
+\import Logic
+\import Paths
+\import Set
+\import lec6
+
+\func Choice (A : \Set) => \Pi (B : A -> \Set) -> (\Pi (x : A) -> TruncP (B x)) -> TruncP (\Pi (x : A) -> B x)
+
+-- item 2
+\data \infix 7 + (A B : \Set)
+  | inl A
+  | inr B
+
+\func lem {A B : \Set} {C : A + B -> \Set} (left : \Pi (x : A) -> C (inl x)) (right : \Pi (x : B) -> C (inr x))
+  : \Pi (x : A + B) -> C x => \lam x => \case\elim x \with {
+  | inl a => left a
+  | inr b => right b
+}
+
+\func trunc-map2 {A B C : \Type} (t1 : TruncP A) (t2 : TruncP B) (f : A -> B -> C) : TruncP C \elim t1, t2
+  | inP a, inP b => inP (f a b)
+
+\func union-choice (A B : \Set) (choice-a : Choice A) (choice-b : Choice B) : Choice (A + B)
+  => \lam C p => trunc-map2 (choice-a (\lam x => C (inl x)) (\lam x => p (inl x)))
+      (choice-b (\lam x => C (inr x)) (\lam x => p (inr x))) lem
+
+-- item 3
+
+\func prod-lem {A B : \Set} {C : \Sigma A B -> \Set} (p : \Pi (x : A) -> \Pi (y : B) -> C (x, y))
+  : \Pi (q : \Sigma A B) -> C q
+  => \lam q => p q.1 q.2
+
+\func prod-lem-dep {A : \Set} {C : A -> \Set} {D : \Sigma (a : A) (C a) -> \Set} (p : \Pi (x : A) -> \Pi (y : C x) -> D(x,y))
+  : \Pi (q : \Sigma (a : A) (C a)) -> D q => \lam q => p q.1 q.2
+
+\func product-choice (A B : \Set) (choice-a : Choice A) (choice-b : Choice B) : Choice (\Sigma A B)
+  => \lam C p => TruncP.map
+      (choice-a (\lam a => \Pi (b : B) -> C (a, b)) (\lam x => choice-b (\lam y => C (x, y)) (\lam d => p (x, d))))
+      prod-lem
+
+\func sigma-choice (A : \Set) (C : A -> \Set) (choice-a : Choice A) (choice-d : \Pi (a : A) -> Choice (C a))
+  : Choice (\Sigma (a : A) (C a))
+  => \lam D p => TruncP.map
+      (choice-a (\lam a => \Pi (b : C a) -> D (a, b)) (\lam x => choice-d x (\lam y => D (x, y)) (\lam d => p (x, d))))
+      prod-lem-dep
+
+-- item 4
+
+\func subset {A : \Set} (p : A -> \Prop) => \Sigma (a : A) (p a)
+
+\func dec-subset-choice {A : \Set} (p : A -> \Prop) (dec : \Pi (a : A) -> Dec (p a)) (choice-a : Choice A) : Choice (subset p)
+  => \lam C q => {?}
+\where {
+  \func index (C : subset p -> \Set) (a : A)  : \Set => \case (dec a) \with {
+    | yes e => C (a, e)
+    | no n => \Sigma
+  }
+
+  \func index-not-empty (C : subset p -> \Set) (q : \Pi (x : subset p) -> TruncP (C x)) (a : A) (pp : p a)
+    : TruncP (index C a) => {?}
+}
+
+-- item 5
+
+\func sigma-eq1 {A : \Type} {B : A -> \Type} (a b : \Sigma (a : A) (B a)) (eq : a = b) : a.1 = b.1 =>
+  pmap (\lam x => x.1) eq
+
+\func prop-not-eq (eq : (\Sigma ) = Empty) : Empty => transport (\lam x => x) eq ()
+
+--\func theorem {A : \Set} : (A + (\Sigma)) >-> (\Sigma (P : \Prop) (P -> A)) =>
+--  (f, \lam x y => \case\elim x,\elim y\with {
+--    | inl a, inl a1 => \lam eq => pmap inl (pmap calc (sigma-eq2 eq))
+--    | inl a, inr b => \lam absurd-eq => {?}
+--    | inr b, inl a => \lam absurd-eq => absurd (prop-not-eq (sigma-eq1 absurd-eq))
+        -- absurd (prop-not-eq (sigma-eq1 {A} {\ -> A} absurd-eq))
+--    | inr b, inr b1 => \lam _ => {?}
+--  } ) \where {
+--  \func f (x : A + (\Sigma)) : \Sigma (P : \Prop) (P -> A)
+--    | inl a => (\Sigma, from-unit a)
+--    | inr b => (Empty, absurd)
+--
+--  \func from-unit {A : \Set} (a : A) (x : \Sigma) : A => a
+--  \func calc {A : \Set} (p : \Sigma -> A) : A => p ()
+--}
