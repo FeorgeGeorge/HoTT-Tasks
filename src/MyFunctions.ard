@@ -1,0 +1,55 @@
+\import HLevel
+\import Logic
+\import Paths
+\import Function (id)
+
+-- Functions, injectivity and surjectivity
+
+\func funExt {A : \Type} (B : A -> \Type) {f g : \Pi (a : A) -> B a}
+             (p : \Pi (a : A) -> f a = g a) : f = g
+  => path (\lam i => \lam a => p a @ i)
+\func funExt' {A B : \Type} {f g : A -> B} (p : \Pi (a : A) -> f a = g a) : f = g => funExt (\lam _ => B) p
+
+\func injective {A B : \Type} (f : A -> B) => \Pi (a b : A) -> f a = f b -> a = b
+  \where {
+    --  \use\level levelProp  {b-isSet : isSet A} (p : injective f) (q : injective f) : p = q
+    --    => funExt (\lam a => \Pi (b : A) -> f a = f b -> a = b)
+    --        (\lam a => funExt (\lam b => f a = f b -> a = b)
+    --            (\lam b => funExt {f a = f b} (\lam _ => a = b) (\lam z => b-isSet a b (p a b z) (q a b z))))
+    -- very ugly and explicit
+  }
+
+\func injective-comp {A B C : \Type} {f : A -> B} {g : B -> C} (inj-f : injective f) (inj-g : injective g)
+  : injective (f o g) =>
+  \lam x y eq => inj-f x y (inj-g (f x) (f y) eq)
+
+--\func s-inj {A B : \Type} {f : A -> B} {inj : injective f} {a a' : A} (eq : f a = f a') : a = a'
+--  =>  inj a a' eq
+
+\func injective-to-Prop {A : \Type} {B : \Prop} (f : A -> B) (inj : injective f) : isProp A
+  => \lam a b => inj a b propPath
+
+\func section-is-inj {A B : \Type} (f : A -> B) (g : B -> A) (sec : \Pi (a : A) -> g (f a) = a) : injective f =>
+  \lam a b f-eq => inv (sec a) *> pmap g f-eq *> sec b
+
+--- operations
+
+\func\infixl 5 o {A B C : \Type} (f : A -> B) (g : B -> C) => \lam x => g (f x)
+
+\func neutral-left-id {A : \Type} (f : A -> A) : id o f = f => funExt (\lam _ => A) (\lam x => idp)
+\func neutral-right-id {A : \Type} (f : A -> A) : f o id = f => funExt (\lam _ => A) (\lam x => idp)
+
+\func o-assoc {A B C D : \Type} (f : A -> B) (g : B -> C) (h : C -> D) : f o (g o h) = f o g o h
+  => funExt (\lam _ => D) (\lam x => idp)
+
+\type isIdempotent {A : \Type} (f : A -> A) => f o f = f
+\func sec-lemma {A B : \Type} (f : A -> B) (g : B -> A) (sec : g o f = id)
+  : isIdempotent (f o g) =>
+  (f o g) o (f o g) ==< o-assoc (f o g) f g >==
+  ((f o g) o f) o g ==< pmap (__ o g) (inv (o-assoc f g f)) >==
+  f o (g o f) o g ==< pmap (f o __ o g) sec
+
+\func inv-ext {A B : \Type} (f g : A -> B) (eq : f = g) : \Pi (x : A) -> f x = g x
+  => \lam x => path (\lam i => (eq i) x)
+
+\func isInvolutive {A : \Type} (f : A -> A) => f o f = id

@@ -1,28 +1,129 @@
 \import Data.Or
+\import Function (id)
+\import HLevel
 \import Logic
-\import Set
+\import MyPaths
+\import Paths
+\import MyFunctions (funExt, injective-to-Prop, inv-ext, isIdempotent, o, sec-lemma, section-is-inj)
+\import definitions
 
-\func lem => \Pi (P : \Prop) -> Dec P
-\func dne (P : \Prop) : \Prop => Not (Not P) -> P
+\func lemma-1 {A : \Type} (R : A -> A -> \Type) (F : \Pi (x x' : A) -> x = x' -> R x x')
+              (G : \Pi (x x' : A) -> R x x' -> x = x') (invers : \Pi (x x' : A) -> \Pi (r : R x x') -> F x x' (G x x' r) = r)
+              (x x' : A) (p : x = x') : G x x' (F x x' p) = p
+\elim x, x', p
+  | x, x', idp => idemp-path-is-idp x (H x x idp) (lemm x)
+  \where {
+    \func H (x x' : A) => F x x' o G x x'
 
-\func dne<->lem : lem <-> dne => (lem->dne, dne->lem)
+    \func H-IsIdempotent (x x' : A) : isIdempotent (H x x') =>
+      sec-lemma (F x x') (G x x') (funExt (\lam _ => R x x') (invers x x'))
 
-\func lem->dne (l : lem) : dne => \lam P => lem->dne' (l P) \where {
-  \func lem->dne' {P : \Prop} (p : Dec P): dne P => \lam q => \case p \with {
-    | yes e => e
-    | no n => absurd (q n)
+    \func lemm (x : A) : H x x idp *> H x x idp = H x x idp => inv(
+      H x x idp ==< inv-ext (H x x) (H x x o H x x) (inv (H-IsIdempotent x x)) idp >==
+      H x x (H x x idp) ==< J-lemma H x x (H x x idp))
+  }
+
+\func lemma-2 {A : \Type} (R : A -> A -> \Prop) (R-refl : \Pi (x : A) -> R x x) (G : \Pi (a a' : A) -> R a a' -> a = a')
+  : isSet A => \lam x x' => injective-to-Prop {x = x'} (F x x') (section-is-inj (F x x') (G x x') (apply-lemm-1 x x'))
+  \where {
+    \func F (x x' : A) (p : x = x') : R x x'\elim x, x', p
+      | x, x', idp => R-refl x
+
+    \lemma invers (x x' : A) (r : R x x') : F x x' (G x x' r) = r => propPath
+
+    \func apply-lemm-1  : \Pi (x x' : A) -> \Pi (p : x = x') -> G x x' (F x x' p) = p =>
+      lemma-1 R F G invers
+  }
+
+---- ITEM 1 ----
+---- a)
+
+\func item1 {A : \Type} {B : \Set} (f : A -> B) (s : \Pi (a a' : A) -> f a = f a' -> a = a')
+  : isSet A => lemma-2 R R-refl G \where {
+  \func R (x x' : A) => f x = f x'
+
+  \func R-refl (x : A) : f x = f x => idp
+
+  \func G (x x' : A) => s x x'
+}
+
+---- ITEM 2 ----
+
+\func sum-of-sets-isSet' {A B : \Set} : isSet (A `Or` B) => lemma-2 R R-refl G \where {
+  \func R (x x' : A `Or` B) : \Prop
+    | inl a, inl a' => a = a'
+    | inl a, inr b => Empty
+    | inr b, inl a => Empty
+    | inr b, inr b' => b = b'
+
+  \func R-refl (x : A `Or` B) : R x x
+    | inl a => idp
+    | inr b => idp
+
+  \func G (x x' : A `Or` B) (r : R x x') : x = x'\elim x,x'
+    | inl a, inl a' => pmap inl r
+    | inr b, inr b1 => pmap inr r
+}
+
+---- b)
+
+\func sum-of-sets-isSet (A : \Set) (B : A -> \Set) : isSet (\Sigma (a : A) (B a)) =>
+  lemma-2 R R-refl G \where {
+  \func R (x x' : \Sigma (a : A) (B a)) : \Prop => \Sigma (p : x.1 = x'.1) (transport B p x.2 = x'.2)
+
+  \func R-refl (x : \Sigma (a : A) (B a)) : R x x => (idp, idp)
+
+  \func G (x x' : \Sigma (a : A) (B a)) (r : R x x') : x = x' => sigmaEq B x x' r.1 r.2
+}
+
+---- c)
+
+\func product-of-sets-isSet (A : \Set) (B : A -> \Set) : isSet (\Pi (a : A) -> B a) =>
+  lemma-2 R R-refl G \where {
+  \func R (x x' : \Pi (a : A) -> B a) : \Prop => \Pi (a : A) -> x a = x' a
+
+  \func R-refl (x : \Pi (a : A) -> B a) : R x x => \lam a => idp
+
+  \func G (x x' : \Pi (a : A) -> B a) (r : R x x') : x = x' => funExt {A} B r
+}
+
+---- ITEM 3 ----
+
+\func Hedberg (A : \Type) (dec : \Pi (a a' : A) -> (a = a') `Or` Not (a = a')) : isSet A =>
+  lemma-2 R R-refl G \where {
+  \func R (a a' : A) : \Prop => Not (Not (a = a'))
+
+  \func R-refl (a : A) : R a a => \lam n-eq => n-eq idp
+
+  \func G (a a' : A) (r : R a a') : a = a' => \case (dec a a') \with {
+    | inl p => p
+    | inr n-p => absurd (r n-p)
   }
 }
-\func dne->lem (d : dne) : lem => \lam P => d (Dec P) (lemma P)
 
-\func lemma (P : \Prop) : Not (Not (Dec P)) => \lam pp => (l1 pp).2 (l1 pp).1
+---- ITEM 4 ----
+-- should be the same as pmap used before
+
+\func \infix 6 ap {A B : \Type} {a a' : A} (f : A -> B) (p : a = a') : f a = f a' \elim a, a', p
+  | a, a', idp => idp
   \where {
-    \func l1 {P : \Prop} (q : Not (Dec P)) : \Sigma (Not P) (Not (Not P)) =>
-      (\lam p => q (yes p), \lam np => q (no np))
+    \func ap-idp(a : A) : f ap idp {A} {a}  = idp => idp
+
+    \func ap-comp {a b c : A} (p : a = b) (q : b = c) : f ap (p *> q) = (f ap p) *> (f ap q) \elim b, c, q
+      | b, c, idp => idp
+
+    \func ap-inv {a a' : A} (p : a = a') : f ap inv p = inv (f ap p) \elim a, a', p
+      | a, a', idp => idp
+
+    \func id-ap {a a' : A} (p : a = a') : id ap p = p
+      | a, a', idp => idp
+
+    \func comp-ap {B C : \Type} {a a' : A} (p : a = a') (f : A -> B) (g : B -> C) : (f o g) ap p = g ap (f ap p)
+    \elim a, a', p
+      |  a, a', idp => idp
+
+    \func cont-ap {B : \Type} {a a' : A} (b : B) (p : a = a') : (\lam _ => b) ap p = idp \elim a, a', p
+      | a, a', idp => idp
   }
 
-\func lem2 => \Pi (A : \Type) -> TruncP (Or A (Not A))
-
-\func eq-lems : lem <-> lem2 => {?}
--- Dec (TruncP P) = TruncP [Or P (Not P)] in some sense
-\func lem->lem2 (c : lem) : lem2 => \lam P => {?}
+---- ITEMs 5 and 6 were dealt with during the lecture

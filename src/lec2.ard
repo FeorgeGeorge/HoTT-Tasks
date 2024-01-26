@@ -1,0 +1,142 @@
+\import Data.Or
+\import HLevel
+\import Logic
+\import Logic.Meta
+\import MyFunctions
+\import Paths
+\import definitions (&&, injective-inv-image-prop)
+
+---- ITEM 1 ----
+
+\func dne<->lem : lem-law <-> dne-law => (lem->dne, dne->lem)
+
+\data Dec (P : \Prop)
+  | yes P
+  | no (Not P)
+  \where {
+    \use\level isProp (x y : Dec P) : x = y\elim x, y
+      | yes a, yes b => pmap yes (Path.inProp a b)
+      | yes a, no b => absurd (b a)
+      | no a, yes b => absurd (a b)
+      | no a, no b => pmap no (Path.inProp a b)
+  }
+
+\func lem-law => \Pi (P : \Prop) -> Dec P \where {
+  \use \level IsProp (x y : lem-law) : x = y => funExt Dec (\lam P => Dec.isProp P (x P) (y P))
+}
+
+\func dne-law : \Prop => \Pi (P : \Prop) -> dne P
+
+\func dne (P : \Prop) : \Prop => Not (Not P) -> P
+
+\func lem->dne (l : lem-law) (P : \Prop) : dne P => dec=>dne (l P)
+
+\func dec=>dne {P : \Prop} (p : Dec P): dne P => \lam q => \case p \with {
+  | yes e => e
+  | no n => absurd (q n)
+}
+
+\func de-morgan-dec {P : \Prop} (q : Not (Dec P)) : \Sigma (Not P) (Not (Not P)) =>
+  (\lam p => q (yes p), \lam np => q (no np))
+
+\func dne=>dec (P : \Prop) : Not (Not (Dec P)) => \lam pp => \let (a, b) => de-morgan-dec pp \in b a
+
+\func dne->lem (d : dne-law) (P : \Prop) : Dec P => d (Dec P) (dne=>dec P)
+
+---- ITEM 2 ----
+
+\func type-lem<->lem : type-lem-law <-> lem-law => (type-lem=>lem, lem=>type-lem)
+
+\func type-lem-law : \Prop => \Pi (A : \Type) -> TruncP (Or A (Not A))
+
+\func or=>dec {P : \Prop} (y : Or P (Not P)) : Dec P
+  | inl a => yes a
+  | inr b => no b
+
+\func dec=>or {P : \Prop} (y : Dec P) : Or P (Not P)
+  | yes p => inl p
+  | no n => inr n
+
+\func contr {P : \Prop} (x : P) (y : Not P) : Empty => y x
+
+\func contr' {A : \Type} (x : Not (TruncP A)) (a : A) : Empty => x (inP a)
+
+\lemma type-lem=>lem (t : type-lem-law) (P : \Prop) : Dec P => or=>dec (TruncP.remove (Or.levelProp contr) (t P))
+
+\func lem=>type-lem (l : lem-law) (A : \Type) : TruncP (Or A (Not A)) =>
+  \case l (TruncP A) \with {
+    | yes e => TruncP.map e inl
+    | no n => TruncP.map (inP (\lam x => n (inP x))) inr
+  }
+
+---- ITEM 3 ----
+
+\func double-negation (A : \Type) => Not (Not A)
+  \where {
+    \use\level isProp : \Prop -- can be easily shown as Not A is already Prop by extensionality, and so is Not (Not A)
+  }
+
+\func t-in {A : \Type} (a : A) : double-negation A => \lam n => n a
+
+-- here rec assumes dne (TruncP A) which follows from LEM
+
+\lemma t-rec {A : \Type} {B : \Prop} (l : dne (TruncP A)) (f : A -> B) (n : double-negation A) : B =>
+  \let double-neg : double-negation (TruncP A) => \lam x => n (contr' x)
+       | x => l double-neg \in
+    \case\elim x \with {
+      | inP x => f x
+    }
+
+---- ITEM 4 ----
+
+\func item4 {A : \Type} (l : lem-law) : TruncP A <-> double-negation A => (trunc=>dn, dn=>trunc l)
+
+\func trunc=>dn {A : \Type} (x : TruncP A) : double-negation A\elim x
+  | inP x => \lam y => y x
+
+\func dn=>trunc {A : \Type} (l : lem-law) (y : double-negation A) : TruncP A => \case l (TruncP A) \with {
+  | yes p => p
+  | no n => absurd (y (contr' n))
+}
+
+---- ITEM 5 ----
+
+\func isWPop (A : \Type) => isProp A -> A
+  \where {
+    \use\level levelProp (x y : isWPop A) : x = y => funExt {isProp A} (\lam _ => A) (\lam a => a (x a) (y a))
+  }
+
+\func trunc=>isWPop {A : \Type} (t : TruncP A) : isWPop A =>
+  \lam x => TruncP.remove x t
+
+\func lemm' {A : \Type} (n : Not A) : isProp A => \lam x _ => absurd (n x)
+
+\func isWPop=>dn {A : \Type} (w : isWPop A) : double-negation A =>
+  \lam x => x (w (lemm' x))
+
+---- ITEM 6 ----
+-- A is  presumed to be just a set rather then assuming IDP
+-- B is also a set, so that isProp(injective f) can be derived automatically
+
+\func isBij {A B : \Type} (f : A -> B) => ∃ (g : B -> A) (\Pi (a : A) -> g (f a) = a) (\Pi (b : B) -> f (g b) = b)
+
+\func surjective {A B : \Type} (f : A -> B) : \Prop => \Pi (b : B) -> TruncP (\Sigma (a : A) (f a = b))
+
+\func isBij<->Inj+Sur {A B : \Set} (f : A -> B) : isBij f <-> injective f && surjective f =>
+  (isBij=>Inj+Sur, \lam pair => Inj+Sur=>Bij pair.1 pair.2)
+  \where {
+    \lemma isBij=>isInj  (p : isBij f) : injective f\elim p
+      | inP (g, sec, ret) => section-is-inj f g sec
+
+    \lemma isBij=>isSur (p : isBij f) : surjective f\elim p
+      | inP (g, f, ret) => \lam b => inP (g b, ret b)
+
+    \lemma isBij=>Inj+Sur (p : isBij f) => (isBij=>isInj p, isBij=>isSur p)
+
+    \func Inj+Sur=>Bij (inj : injective f) (surj : surjective f) : isBij f =>
+      \let inverse-image (b : B) => TruncP.remove (injective-inv-image-prop f inj b) (surj b) \in
+      inP (\lam b => (inverse-image b).1,
+           \lam a => inj (inverse-image (f a)).1 a (inverse-image (f a)).2,
+           \lam b => (inverse-image b).2)
+  }
+

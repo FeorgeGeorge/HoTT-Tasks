@@ -1,0 +1,63 @@
+\import HLevel
+\import MyFunctions
+\import Paths
+
+-- Logic
+
+\func \infixr 6 && (A B : \Prop) => \Sigma A B
+
+-- Sigma Equality
+
+\func sigmaEq {A : \Type} (B : A -> \Type) (t1 t2 : \Sigma (x : A) (B x))
+              (p : t1.1 = t2.1) (q : transport B p t1.2 = t2.2)
+  : t1 = t2 \elim t1, t2, p, q
+  | (x,b), (x1,b1), idp, idp => idp
+
+\func sigmaEq-Prop {A : \Type} (B : A -> \Prop) (t1 t2 : \Sigma (x : A) (B x)) (p : t1.1 = t2.1) : t1 = t2
+  => sigmaEq B t1 t2 p propPath
+
+\func sigmaEq' {A B : \Type} (t1 t2 : \Sigma A B) (p : t1.1 = t2.1) (q : t1.2 = t2.2) : t1 = t2\elim t1,t2,p,q
+  | (a,b), (a1,b1), idp, idp => idp
+
+\type Relation (A : \Type) => A -> A -> \Prop
+
+\record EquivRel {A : \Type} (relation : Relation A)
+  | refl : \Pi (a : A) -> relation a a
+  | sym : \Pi (a b : A) -> relation a b -> relation b a
+  | transitive : \Pi (a b c : A) -> relation a b -> relation b c -> relation a c
+
+\truncated \data EquivalenceClosure {A : \Type} (R : Relation A) (x y : A) : \Prop
+  | in (R x y)
+  | r-refl (x = y)
+  | r-sym (R y x)
+  | r-transitive (z : A) (EquivalenceClosure R x z) (EquivalenceClosure R z y)
+
+\func closure-is-equivalence {A : \Type} (R : Relation A) : EquivRel (EquivalenceClosure R) => \new EquivRel {
+  | refl a => r-refl idp
+  | sym => closure-sym
+  | transitive a b c a--b b--c => r-transitive b a--b b--c
+} \where {
+  \func closure-sym (a b : A) (a--b : EquivalenceClosure R a b) : EquivalenceClosure R b a\elim a--b
+    | in aRb => r-sym aRb
+    | r-refl t => r-refl (inv t)
+    | r-sym bRa => in bRa
+    | r-transitive c a--c c--b => r-transitive c (closure-sym c b c--b) (closure-sym a c a--c)
+}
+
+\func sum-of-props-isProp' {A : \Type} {B : A -> \Type} (prop : \Pi (a : A) -> isProp (B a))
+                           (unique : \Pi (a a' : A) -> B a -> B a' -> a = a')
+  : isProp (\Sigma (a : A) (B a)) =>
+  \lam p q => \let t => unique p.1 q.1 p.2 q.2 \in sigmaEq B p q t (prop q.1 (transport B t p.2) q.2)
+
+\func injective-inv-image-prop {A : \Type} {B : \Set} (f : A -> B) (inj : injective f) (b : B) : isProp (\Sigma (a : A) (f a = b))
+  => sum-of-props-isProp' (\lam a p q => setPath {B} {f a} {b}) (\lam a a' p q => inj a a' (p *> inv q))
+
+\func prod-of-props-isProp {A : \Type} {B : A -> \Type} (prop : \Pi (a : A) -> isProp (B a)) : isProp (\Pi (a : A) -> B a) =>
+  \lam p q => funExt B (\lam a => prop a (p a) (q a))
+
+
+\func pullback {A B C : \Type} (f : A -> C) (g : B -> C) => \Sigma (a : A) (b : B) (f a = g b)
+\func pullback-g {A B C : \Type} (f : A -> C) (g : B -> C) (x : pullback f g) : A => x.1
+\func pullback-f {A B C : \Type} (f : A -> C) (g : B -> C) (x : pullback f g) : B => x.2
+
+

@@ -1,0 +1,12 @@
+\import Paths
+
+\func idemp-path-is-idp {A : \Type} (a : A) (p : a = a) (pp : p *> p = p) : p = idp
+  => inv(
+      idp ==< inv (*>_inv p) >==
+      p *> inv p ==< pmap (__ *> inv p) (inv pp) >==
+      (p *> p) *> inv p ==< *>-assoc p p (inv p) >==
+      p *> p *> inv p ==< pmap (p *> __) (*>_inv p))
+
+\func J-lemma {A : \Type} (H : \Pi (x x' : A) -> x = x' -> x = x') (x x' : A) (p : x = x') : H x x' p = H x x idp *> p
+\elim x, x', p
+  | x, x', idp => idp

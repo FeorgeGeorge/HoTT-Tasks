@@ -1,0 +1,60 @@
+\import MyPaths
+-- ITEM 1
+
+\data Bool
+  | true
+  | false
+
+\func \infix 2 and (x y : Bool) : Bool => \case x, y \with {
+  | true, true => true
+  | _, false => false
+  | false, _ => false
+}
+
+\func and-comm (x y : Bool) : x and y = y and x
+  | true, true => idp
+  | true, false => idp
+  | false, true => idp
+  | false, false => idp
+
+\func and-assoc (x y z : Bool) : (x and y) and z = x and (y and z)
+  | true, true, true => idp
+  | true, true, false => idp
+  | true, false, true => idp
+  | true, false, false => idp
+  | false, true, true => idp
+  | false, true, false => idp
+  | false, false, true => idp
+  | false, false, false => idp
+
+-- ITEM 3 and 4
+
+\func sym {A : \Type} {a a' : A} (p : a = a') : a' = a => transport (\lam x => x = a) p idp
+
+\func \infixr 5 * {A : \Type} {a a' a'' : A} (p : a = a') (q : a' = a'') : a = a'' => transport (\lam x => a = x) q p
+
+\func idp-neutral-left {A : \Type} {a a' : A} (p : a = a') : p * idp = p\elim p
+  | idp => idp
+
+\func idp-neutral-right {A : \Type} {a a' : A} (p : a = a') : idp * p = p\elim p
+  | idp => idp
+
+\func *-assoc {A : \Type} {a b c d : A} (p : a = b) (q : b = c) (r : c = d): (p * q) * r = p * (q * r)\elim p, q, r
+  | idp, idp, idp => idp
+
+\func *-left-inv {A : \Type} {a b : A} (p : a = b) : sym p * p = idp\elim p
+  | idp => idp
+
+\func *-right-inv {A : \Type} {a b : A} (p : a = b) : p * sym p = idp\elim p
+  | idp => idp
+
+\func UIP {A : \Type} => \Pi (a a' : A) (p : a = a') (q : a = a') -> p = q
+
+\func K {A : \Type} => \Pi (a : A) (B : a = a -> \Type) (p : a = a) (q : B idp) -> B p
+
+-- ITEM 5
+
+\func UIP=>K {A : \Type} (u : UIP {A}) : K {A} => \lam a B p q => transport {a = a} B (u a a idp p) q
+
+\func K=>UIP {A : \Type} (a a' : A) (p : a = a') (q : a = a') (k : K {A}) : p = q \elim p
+  | idp => k a (\lam x => idp = x) q idp

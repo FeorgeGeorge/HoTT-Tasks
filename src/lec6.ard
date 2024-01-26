@@ -1,8 +1,15 @@
 \import Data.Or
+\import HLevel
 \import Logic
+\import MyFunctions
+\import MyPaths
 \import Paths
+\import definitions
+\import lec2
+\import lec5 (t-prop=true)
 
--- item 1
+---- ITEM 1 ----
+
 \func excluded-middle-law => \Pi (A : \Prop) -> Or A (Not A)
 
 \func \infix 9 ~=~ (A B : \Type) => \Sigma (f : A -> B) (g : B -> A) (\Pi (a : A) -> g (f a) = a) (\Pi  (b : B) -> f (g b) = b)
@@ -48,49 +55,19 @@
 \func isSFin (A : \Type) => \Sigma (n : Nat) (TruncP (A >-> Fin n))
 \func prop-is-2=>prop-is-fin (prop-fin : TruncP (\Prop ~=~ Fin 2)) : isFin \Prop => (2, prop-fin)
 
-\func sec {A B : \Type} (f : A -> B) (g : B -> A) (sec : \Pi (a : A) -> g (f a) = a) : injective f =>
-  \lam a b f-eq => inv (sec a) *> pmap g f-eq *> sec b
 \func isFin=>isSFin {A : \Type} (f : isFin A) : isSFin A =>
-  (f.1, TruncP.map f.2 (\lam (f1, g, eq1, _) => (f1, sec f1 g eq1)))
+  (f.1, TruncP.map f.2 (\lam (f1, g, eq1, _) => (f1, section-is-inj f1 g eq1)))
 
--- isSFin => LEM
 \func prop-SFin => isSFin \Prop
 
-\data \infix 5 <= (n m : Nat) \with
-  | 0, _ => zero-less
-  | suc n, suc m => suc-less (n <= m)
+\func p-lemma (A : \Prop) (not-true : Not (A = (\Sigma))) : Not A => \lam a => not-true (t-prop=true.1 a)
 
-\func absurd-fin-0 {A : \Type} (x : Fin 0) : A
+\func or-prop {A : \Prop} : isProp (Or A (Not A)) => Or.levelProp contr
 
---\open Nat (+)
---
---\func \infix 6 - (n m : Nat) : Nat
---  | 0, 0 => 0
---  | 0, suc m => 0
---  | suc n, 0 => suc n
---  | suc n, suc m => n - m
---
---\func minus-lemma (x : Nat) : x - 0 = x
---  | 0 => idp
---  | suc x => idp
---
---\func -eq (x y : Nat) (ineq : x <= y): x + (y - x) = y\elim x, y, ineq
---  | 0, y, zero-less => minus-lemma y
---  | suc x, suc y, suc-less ineq => pmap suc (-eq x y ineq)
+----- ----- -----
 
---\func can-inject {n : Nat} (x : Fin (suc n)) (ineq : suc x <= n) : Fin n
---  | {suc n}, n1, suc-less ineq => {?}
---
---\func fin-lemma (n m : Nat) (inj : Fin (suc n) >-> Fin (suc m)) : \Sigma (inj' : Fin (suc n) >-> Fin (suc m)) (inj'.1 n = m)
---  => ((new-func, {?}), {?}) \where {
---
---  \func new-func (x : Fin (suc n)) : Fin (suc m) => inj.1 x + (m - inj.1 n)
---
---  \func fin-inj (eq : inj.1 n = m) : Fin n >-> Fin m =>
---    (\lam x => {?}, {?})
---}
---
---\func fin-less (n m : Nat) (inj : Fin n >-> Fin m) : n <= m \elim n, m
---  | 0, _ => zero-less
---  | suc n, 0 => absurd-fin-0 (inj.1 0)
---  | suc n, suc m => suc-less (fin-less n m {?})
+---- ITEM 5 ----
+
+\func inj-pullback-is-inj {A B : \Set} {C : \Type} (f : A -> C) (g : B -> C) (g-inj : injective g) : injective (pullback-g f g)
+  => \lam x y eq => {?}
+

@@ -1,0 +1,150 @@
+\import HLevel
+\import Logic
+\import Logic.Meta
+\import MyFunctions (funExt)
+\import Paths
+\import Relation.Equivalence
+\import Set
+\import definitions (EquivalenceClosure, sigmaEq, Relation, in, prod-of-props-isProp, r-refl, r-sym, r-transitive, sum-of-props-isProp')
+\import lec3
+\import lec6
+
+
+\func isContr (A : \Type) => \Sigma (a : A) (\Pi (b : A) -> b = a)
+  \where {
+    \use \level levelProp (x y : isContr A) : x = y =>
+      \let unique (a a' : A) (_ : \Pi (b : A) -> b = a) (c' : \Pi (b : A) -> b = a') => c' a
+           |  path-isProp (a : A) => \lam a' => isContr=>isSet x a' a \in
+        sum-of-props-isProp' (\lam a => prod-of-props-isProp (path-isProp a)) unique x y
+  }
+
+\func isProp=>isSet {A : \Type} (p : isProp A) : isSet A =>
+  lemma-2 R R-refl G \where {
+  \func R (x y : A) => \Sigma
+
+  \func R-refl (x : A) => ()
+
+  \func G (x x' : A) (s : R x x') => p x x'
+}
+
+\func isContr=>isProp {A : \Type} (c : isContr A) : isProp A => (T-equiv=>isProp-Pop (contr=>T-equiv c)).1
+
+\func isContr=>isSet {A : \Type} (p : isContr A) : isSet A => isProp=>isSet (isContr=>isProp p)
+
+---- ITEM 1 ----
+-- Equivalences with T are straightforward:
+-- There is only on function from A to T
+-- and (T -> A) ~=~ A
+-- So A is equivalent to T precisly when it is embeddable in T and populated
+
+\func T-equiv (A : \Type) => \Sigma (a : A) (f : A -> \Sigma) (injective f)
+
+\func contr=>T-equiv {A : \Type} (c : isContr A) : T-equiv A =>
+  (c.1, \lam _ => (), \lam a b _ => c.2 a *> inv(c.2 b))
+
+\func T-equiv=>isProp-Pop {A : \Type} (t-equiv : T-equiv A) : \Sigma (isProp A) A =>
+  (\lam a b => t-equiv.3 a b idp, t-equiv.1)
+
+\func isProp-Pop=>Prop-just-Pop {A : \Type} (p : \Sigma (isProp A) A) : \Sigma (isProp A) (TruncP A) => (p.1, inP p.2)
+
+\func Prop-just-Pop=>Contr {A : \Type} (p : \Sigma (isProp A) (TruncP A)) : isContr A =>
+  \let c => TruncP.remove p.1 p.2 \in (c, \lam b => inv (p.1 c b))
+
+
+---- ITEM 2 ----
+
+\func path-isContr (A : \Type) => \Pi (a b : A) -> isContr (a = b)
+
+--- they are definitly props, which can be easily shown by functional extensionality and lemma2 from lec3
+
+\func isProp<->path-isContr {A : \Type} : \Sigma (isProp A -> path-isContr A) (path-isContr A -> isProp A) =>
+  (isProp=>path-isContr A, path-isContr=>isProp A)
+  \where {
+    \func isProp=>path-isContr (A : \Type) (prop : isProp A) (a b : A)  : isContr (a = b) => \let p => prop a b \in
+      (p, \lam x => isProp=>isSet prop a b x p)
+
+    \func path-isContr=>isProp (A : \Type) (contr : path-isContr A) (a b : A) : a = b =>
+      (contr a b).1
+  }
+
+---- ITEM 3 ----
+---- a)
+
+\func elim0 {A : \Type} {B : Trunc0 A -> \Set} (f : \Pi (a : A) -> B (in0 a)) (x : Trunc0 A) : B x
+  | f, in0 a => f a
+
+\func isEmpty (A : \Type) : \Prop => Not A
+
+\func isEmpty<->Trunc0-isEmpty (A : \Type) : isEmpty A <-> isEmpty (Trunc0 A) =>
+  (isEmpty=>Trunc0-isEmpty, Trunc0-isEmpty=>isEmpty)
+  \where {
+    \func isEmpty=>Trunc0-isEmpty (e : isEmpty A) (x : Trunc0 A) : Empty
+    \elim x
+      | in0 a => e a
+
+    \func Trunc0-isEmpty=>isEmpty (e : isEmpty (Trunc0 A)) (x : A) : Empty =>
+      e (in0 x)
+  }
+
+---- b)
+
+\func isContr=>Trunc0-isContr {A : \Type} (c : isContr A) : isContr (Trunc0 A) =>
+  (in0 c.1 , \lam x =>\case\elim x \with {
+    | in0 a => pmap in0 (c.2 a)
+  })
+
+---- ITEM 4 ----
+
+\func isEmpty=>isEmpty-with~ {A : \Type} (c : isEmpty A) : \Sigma (r : Relation A) (isEmpty (Quotient r)) =>
+  (\lam a b => \Sigma, \lam a => \case\elim a \with {
+    | in~ a => c a
+  })
+
+\func isEmpty-with~=>isEmpty-for-all~ {A : \Type} (c : ∃ (R : Relation A) (isEmpty (Quotient R)))
+                                      (P : A -> A -> \Prop)
+  : isEmpty (Quotient P)
+\elim c
+  | inP (R, empty-R) => \lam x => \case\elim x \with {
+    | in~ a => empty-R (in~ a)
+  }
+
+\func isEmpty-for-all~=>isEmpty {A : \Type} (c : \Pi (R : Relation A) -> isEmpty (Quotient R)) : isEmpty A =>
+  \lam a => c (\lam x y => \Sigma) (in~ a)
+
+
+
+---- ITEM 5 ----
+
+\record Equivalence (A B : \Type)
+  | f : A -> B
+  | g : B -> A
+  | ret : \Pi (a : A) -> g (f a) = a
+  | sec : \Pi (b : B) -> f (g b) = b
+
+\func theorem {A : \Type} (R : Relation A) : Equivalence (Quotient R) (Quotient (EquivalenceClosure R)) =>
+  \new Equivalence {
+    | f => f
+    | g => g
+    | ret => ret
+    | sec => sec
+  }\where {
+  \func f (a : Quotient R) : Quotient (EquivalenceClosure R)\elim a
+    | in~ a => in~ a
+    | ~-equiv x y r i => (~-equiv x y (in r)) i
+
+  \func g (a : Quotient (EquivalenceClosure R)) : Quotient R\elim a
+    | in~ a => in~ a
+    | ~-equiv x y r i => path-transitiv x y r i
+
+  \func path-transitiv (x y : A) (x--y : EquivalenceClosure R x y) : in~ {A} {R} x = in~ y\elim x--y
+    | in xRy => ~-equiv {A} {R} x y xRy
+    | r-refl t => pmap in~ t
+    | r-sym yRx => inv (~-equiv {A} {R} y x yRx)
+    | r-transitive z x--z z--y => path-transitiv x z x--z *> path-transitiv z y z--y
+
+  \func ret (a : Quotient R) : g (f a) = a\elim a
+    | in~ a => idp
+
+  \func sec (b : Quotient (EquivalenceClosure R)) : f (g b) = b\elim b
+    | in~ a => idp
+}

@@ -1,4 +1,5 @@
 \import Logic
+\import MyPaths
 \import Paths
 \import Set
 \import lec6

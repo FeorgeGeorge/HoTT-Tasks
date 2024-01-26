@@ -1,58 +1,159 @@
--- item 1
-\func \infix 0 <-> (P Q : \Prop) => \Sigma (P -> Q) (Q -> P)
+\import Data.Or
+\import Logic
+\import MyFunctions
+\import Paths
+\import Relation.Equivalence (Quotient, in~, ~-equiv)
+\import definitions
+\import lec1 (Bool, false, true)
+\import lec4
 
-\func all-prop-inv {A B : \Prop} (f : A -> B) (g : B -> A) : \Pi (x : A) -> g (f x) = x =>
-  \lam x => Path.inProp (g (f x)) x
+---- ITEM 1 ----
 
-\func prop-univ {A B : \Prop} (equivalence : A <-> B) : A = B => iso f g (all-prop-inv f g) (all-prop-inv g f)
+\type Continuation (A : \Type) : \Prop => \Pi (C : \Prop) -> (A -> C) -> C
+
+\lemma theorem {A : \Type} : TruncP A = Continuation A =>
+  propExt TruncP=>Cont Cont=>TruncP
   \where {
-    \func f => equivalence.1
-    \func g => equivalence.2
+    \func TruncP=>Cont (ta : TruncP A) : Continuation A\elim ta
+      | inP a => \lam C a->c => a->c a
+
+    \func Cont=>TruncP (c : Continuation A) : TruncP A => c (TruncP A) inP
   }
 
---\type Continuation (A : \Type) => \Pi (C : \Prop) -> (A -> C) -> C
---\func theorem {A : \Type} : TruncP A = Continuation A  => prop-univ equiv
---\func equiv {A : \Type} : TruncP A <-> Continuation A => (\lam x => {?}, \lam c => {?})
+---- ITEM 2 ----
+---- a)
 
-\type Relation (A : \Type) => A -> A -> \Prop
+\func Consistent-Functions {A : \Type} (D : \Set) (R : Relation A) =>
+  \Sigma (f : A -> D) (\Pi (a a' : A) -> (R a a') -> (f a = f a'))
 
-\record Equiv {A : \Type} (relation : Relation A)
-  | refl : \Pi (a : A) -> relation a a
-  | sym : \Pi (a b : A) -> relation a b -> relation b a
-  | transitive : \Pi (a b c : A) -> relation a b -> relation b c -> relation a c
+\func elim-~ {A : \Type} {D : \Set} (R : Relation A)
+  : Equivalence ((Quotient R) -> D) (Consistent-Functions D R) => \new Equivalence {
+  | f => f
+  | g => g
+  | ret => ret
+  | sec => sec
+} \where {
+  \func f (fun : Quotient R -> D) : Consistent-Functions D R =>
+    (\lam x => fun (in~ x), \lam a a' r => pmap fun (~-equiv {A} {R} a a' r))
 
-\func rel-intersection {A : \Type} (rel-family : Relation A -> \Prop) : Relation A => \lam (x y : A)
-  => \Pi (r : Relation A) -> rel-family r -> r x y
+  \func g (fun : Consistent-Functions D R) (x : Quotient R) : D
+    | (f, cons), in~ a => f a
+    | (f, cons), ~-equiv x y r => cons x y r
 
-\func \infixr  5 r<= {A : \Type} (R : Relation A) (r : Relation A) : \Prop => \Pi (a b : A) -> R a b -> r a b
+  \func ret (fun : Quotient R -> D) : g (f fun) = fun =>
+    funExt (\lam _ => D) (\lam a =>\case\elim a \with {
+      | in~ a => idp
+    })
 
-\func equiv<= {A : \Type} (R : Relation A)  (r : Relation A): \Prop => \Sigma (Equiv r) (R r<= r)
+  \func sec (fun : Consistent-Functions D R) : f (g fun) = fun
+    | (fun, cons) => sigmaEq-Prop (\lam f => B R f) (f (g (fun, cons))) (fun, cons) idp
 
-\func gen-equivalence {A : \Type} (R : Relation A) => rel-intersection (equiv<= R)
-\func gen-is-equiv {A : \Type} (R : Relation A) : Equiv (gen-equivalence R) => \new Equiv {
-  | refl => \lam a r (eq, _) => Equiv.refl {eq} a
-  | sym => \lam a b interec r eq => Equiv.sym {eq.1} a b (interec r eq)
-  | transitive => \lam a b c intersec-a-b intersec-b-c r eq => Equiv.transitive {eq.1} a b c (intersec-a-b r eq) (intersec-b-c r eq)
+  \func B {A : \Type} {D : \Set} (R : Relation A) (f : A -> D) : \Prop => \Pi (a a' : A) -> (R a a') -> (f a = f a')
+}
+--- b)
+
+\func Bool-Fun<->Square {D : \Type} : Equivalence (Bool -> D) (\Sigma D D) => \new Equivalence {
+  | f fun => (fun false, fun true)
+  | g (x, y) b => \case\elim b \with {
+    | true => y
+    | false => x
+  }
+  | ret fun => funExt' (\lam b =>\case\elim b \with {
+    | true => idp
+    | false => idp
+  })
+  | sec p => idp
 }
 
--- item 4
-\func sub-gen {A : \Type} (R : Relation A) : equiv<= R (gen-equivalence R) => (gen-is-equiv R,
-                                                                              \lam x y xRy r eq => eq.2 x y xRy)
-\func gen-is-smallest {A : \Type} (R : Relation A) (r : Relation A) (r-eq : equiv<= R r) : gen-equivalence R r<= r =>
+---- c)
+
+\func fromSumEqivalence {A B D : \Type} : Equivalence (Or A B -> D) (\Sigma (A -> D) (B -> D)) => \new Equivalence {
+  | f => f
+  | g => g
+  | ret => ret
+  | sec p => idp
+}
+
+  \where {
+    \func f (or-f : Or A B -> D) : \Sigma (A -> D) (B -> D) => (inl {A} {B} o or-f, inr {A} {B} o or-f)
+
+    \func g (p : \Sigma (A -> D) (B -> D)) (x : Or A B) : D\elim x
+      | inl a => p.1 a
+      | inr b => p.2 b
+
+    \func ret (or-f : Or A B -> D) : g (f or-f) = or-f => funExt' (\lam x => \case\elim x \with {
+      | inl a => idp
+      | inr b => idp
+    })
+  }
+
+---- ITEM 4 ----
+
+\func \infixr 5 r<= {A : \Type} (R : Relation A) (r : Relation A) : \Prop => \Pi (a b : A) -> R a b -> r a b
+
+\func equiv<= {A : \Type} (R : Relation A) (r : Relation A): \Prop => \Sigma (EquivRel r) (R r<= r)
+
+\func equivalence-closure {A : \Type} (R : Relation A) => intersection (equiv<= R)
+  \where {
+    \func intersection {A : \Type} (rel-family : Relation A -> \Prop) : Relation A => \lam (x y : A)
+    => \Pi (r : Relation A) -> rel-family r -> r x y
+  }
+
+\func closure-is-equiv {A : \Type} (R : Relation A) : EquivRel (equivalence-closure R) => \new EquivRel {
+  | refl => \lam a r (eq, _) => EquivRel.refl {eq} a
+  | sym => \lam a b interec r eq => EquivRel.sym {eq.1} a b (interec r eq)
+  | transitive => \lam a b c intersec-a-b intersec-b-c r eq => EquivRel.transitive {eq.1} a b c (intersec-a-b r eq) (intersec-b-c r eq)
+}
+
+\func closure>= {A : \Type} (R : Relation A) : R r<= equivalence-closure R =>
+  \lam x y xRy r (r-is-eq, r<=R) => r<=R x y xRy
+
+\func sub-gen {A : \Type} (R : Relation A) : equiv<= R (equivalence-closure R) => (closure-is-equiv R,
+                                                                                   \lam x y xRy r eq => eq.2 x y xRy)
+
+\func gen-is-smallest {A : \Type} (R : Relation A) (r : Relation A) (r-eq : equiv<= R r) : equivalence-closure R r<= r =>
   \lam a b a~b => a~b r r-eq
 
+---- ITEM 3 ----
 
--- item 3
+\lemma inv-prop-ext {A B : \Prop} (eq : A = B) : A <-> B =>
+  (propExt.dir eq, propExt.conv eq)
 
-\data Unit
-  | *
+\lemma t-prop=true {P : \Prop}  : P <-> P = (\Sigma) => (\lam p => propExt (\lam _ => ()) (\lam _ => p),
+                                                         propExt.conv __ ())
 
-\func t-prop-unit-eq => \Pi (P : \Prop) -> P -> P <-> Unit
-\func t-prop<->unit (P : \Prop) (p : P) : P <-> Unit => (\lam _ => *, \lam _ => p)
+---- ITEM 5
 
-\func t-prop=unit (P : \Prop) (p : P) : P = Unit => prop-univ (t-prop<->unit P p)
+\lemma from-equivalence {G : \Prop -> \Prop} {inj : injective G} {X : \Prop} (eq : G X <-> G (\Sigma)) : X =>
+  t-prop=true.2 (inj X (\Sigma) (propExt eq.1 eq.2))
 
--- item 5
---\func is-inj {A B : \Type} (f : A -> B) => \Pi (x y : A) -> f x = f y
+\lemma prop-theorem (F : \Prop -> \Prop) (inj : injective F) (P : \Prop) (x : F P) : P = F (\Sigma) =>
+  apply-inj x get-ff1
+  \where {
+    \lemma s-inj {X Y : \Prop} (eq : F X = F Y) : X = Y => inj X Y eq
 
---\func f-lemma (f : \Prop -> \Prop) (inj : is-inj f) (P : \Prop) (p : f P) : P = f Unit => {?}
+    \lemma apply-inj {X Y : \Prop} (a : F X) (b : F Y) : X = Y => s-inj (t-prop=true.1 a *> inv (t-prop=true.1 b))
+
+    \lemma s-from-equiv {X : \Prop} (eq : F X <-> F(\Sigma)) : X =>
+      from-equivalence {F} {inj} {X} eq
+
+    \lemma from-double-f-ff1 {X : \Prop} (ff1 : F (F (\Sigma))) (x : F (F X)) : X =>
+      t-prop=true.2 (s-inj (apply-inj x ff1))
+
+    \lemma reduce-double-f {X : \Prop}  : F (F X) -> X => from-double-f-ff1 get-ff1
+
+    \lemma put-double-f-ff1 {X : \Prop} (ff1 : F(F(\Sigma))) (x : X)  : F (F X) =>
+      transport (F o F) (inv (t-prop=true.1 x)) ff1
+
+    \lemma put-double-f {X : \Prop} : X -> F (F X) => put-double-f-ff1 get-ff1
+
+    \lemma get-ff1 : F (F (\Sigma)) =>
+      \let
+        | from-1  =>\lam (x : F(\Sigma)) => transport F (inv (t-prop=true.1 x)) x  \in
+        s-from-equiv (\lam fff1 => s-from-equiv {F (\Sigma)} (\lam ff1 => from-double-f-ff1 ff1 fff1, from-1) , \lam f1 => put-double-f-ff1 (from-1 f1) f1)
+
+    \lemma injective-prop-is-involutive : F (F P) = P =>
+      propExt reduce-double-f put-double-f
+  }
+
+
